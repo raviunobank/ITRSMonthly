@@ -6,6 +6,8 @@ import * as xlsx from 'xlsx';
 function App() {
   const [fromDate, setFromDate] = React.useState('');
   const [toDate, setToDate] = React.useState('');
+  const [amount, setAmountValue] = React.useState('');
+
   function convertXML(
     data: any,
     tagName: string,
@@ -22,7 +24,6 @@ function App() {
     if (data === null || data === undefined) {
       return `${indentSpaces}<${tag} />`;
     }
-
     const content =
       // eslint-disable-next-line no-nested-ternary
       Object.prototype.toString.call(data) === '[object Array]'
@@ -150,7 +151,7 @@ function App() {
         CDRC_A: { MAIN: main },
         CDRC_B: {
           MAIN: {
-            R0130C0010: 1719101,
+            R0130C0010: amount,
           },
         },
       });
@@ -173,12 +174,17 @@ function App() {
     setToDate(event.target.value);
   }
 
+  function setAmount(event: React.ChangeEvent<HTMLInputElement>): void {
+    setAmountValue(event.target.value);
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <h1>Upload File</h1>
       <input type="file" name="upload" id="upload" />
       <input type="date" name="fromDate" id="fromDate" onChange={setDate1} />
       <input type="date" name="toDate" id="toDate" onChange={setDate2} />
+      <input type="text" name="amount" id="amount" onChange={setAmount} />
       <button type="submit">Submit</button>
     </form>
   );
