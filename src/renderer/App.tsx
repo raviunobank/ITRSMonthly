@@ -1,5 +1,6 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable no-underscore-dangle */
+import { table } from 'console';
 import React from 'react';
 import * as xlsx from 'xlsx';
 
@@ -80,50 +81,57 @@ function App() {
     reader.onload = (e) => {
       const data = e.target?.result as ArrayBuffer;
       const workbook = xlsx.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      const worksheet = workbook.Sheets.CDRC_A;
       const json: any = xlsx.utils.sheet_to_json(worksheet);
+      console.table(json);
 
       const mJson = [];
       const days = [
-        '__EMPTY_4',
-        '__EMPTY_5',
-        '__EMPTY_6',
-        '__EMPTY_7',
-        '__EMPTY_8',
-        '__EMPTY_9',
-        '__EMPTY_10',
+        'Consolidated Daily Report of Condition_3',
+        'Consolidated Daily Report of Condition_4',
+        'Consolidated Daily Report of Condition_5',
+        'Consolidated Daily Report of Condition_6',
+        'Consolidated Daily Report of Condition_7',
+        'Consolidated Daily Report of Condition_8',
+        'Consolidated Daily Report of Condition_9',
       ];
       const daysList: any = {
-        __EMPTY_4: 'C0020',
-        __EMPTY_5: 'C0030',
-        __EMPTY_6: 'C0040',
-        __EMPTY_7: 'C0050',
-        __EMPTY_8: 'C0060',
-        __EMPTY_9: 'C0070',
-        __EMPTY_10: 'C0080',
+        'Consolidated Daily Report of Condition_3': 'C0020',
+        'Consolidated Daily Report of Condition_4': 'C0030',
+        'Consolidated Daily Report of Condition_5': 'C0040',
+        'Consolidated Daily Report of Condition_6': 'C0050',
+        'Consolidated Daily Report of Condition_7': 'C0060',
+        'Consolidated Daily Report of Condition_8': 'C0070',
+        'Consolidated Daily Report of Condition_9': 'C0080',
       };
       for (let i = 0; i < json.length; i++) {
         if (i > 3) {
           const newJson = json[i];
-          delete newJson.__EMPTY;
-          delete newJson.__EMPTY_1;
-          delete newJson.__EMPTY_3;
+          delete newJson.CDRC_A;
+          delete newJson['Consolidated Daily Report of Condition'];
+          // delete newJson['Consolidated Daily Report of Condition_1'];
 
           mJson.push(newJson);
         }
       }
       const newArr = [];
       console.log('mjsob', mJson);
-      for (let j = 0; j < mJson.length; j++) {
+      for (let j = 0; j < mJson.length - 1; j++) {
         const item = mJson[j];
         const tempArr: any = {};
         for (let k = 0; k < days.length; k++) {
-          if (item[days[k]] != null && item?.__EMPTY_2) {
+          //console.log(item['Consolidated Daily Report of Condition_1']);
+          console.log(item);
+
+          if (
+            item[days[k]] != null &&
+            item['Consolidated Daily Report of Condition_1']
+          ) {
             const tempDate = days[k];
             const CHash = daysList[tempDate];
-            const keyS = `${item.__EMPTY_2}${CHash}`;
+            const keyS = `${item['Consolidated Daily Report of Condition_1']}${CHash}`;
             tempArr[keyS] = item[days[k]];
+            // console.log(item['Consolidated Daily Report of Condition_1']);
           }
         }
         newArr.push(tempArr);
@@ -140,7 +148,7 @@ function App() {
         };
       });
 
-      console.log();
+      console.log('Main', main);
 
       createXMLData({
         Header: {
