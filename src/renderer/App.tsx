@@ -1,20 +1,53 @@
-/* eslint-disable no-plusplus */
-/* eslint-disable no-underscore-dangle */
-import { table } from 'console';
-import React from 'react';
+import * as React from 'react';
 import * as xlsx from 'xlsx';
 
-function App() {
-  const [fromDate, setFromDate] = React.useState('');
-  const [toDate, setToDate] = React.useState('');
-  const [amount, setAmountValue] = React.useState('');
+const formStyle: React.CSSProperties = {
+  maxWidth: '400px',
+  margin: 'auto',
+  padding: '20px',
+  border: '1px solid #ccc',
+  borderRadius: '5px',
+  textAlign: 'center',
+};
 
-  function convertXML(
+const headerStyle: React.CSSProperties = {
+  fontSize: '24px',
+  marginBottom: '20px',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px',
+  marginBottom: '10px',
+  borderRadius: '5px',
+  border: '1px solid #ccc',
+  boxSizing: 'border-box',
+};
+
+const buttonStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px',
+  borderRadius: '5px',
+  border: 'none',
+  backgroundColor: '#007bff',
+  color: '#fff',
+  cursor: 'pointer',
+};
+
+interface DataObject {
+  [key: string]: any;
+}
+
+function App() {
+  const [fromDate, setFromDate] = React.useState<string>('');
+  const [toDate, setToDate] = React.useState<string>('');
+
+  const convertXML = (
     data: any,
     tagName: string,
     arrayElementTag = 'element',
     spaces = 0,
-  ): string {
+  ): string => {
     const tag = tagName
       .replace(/[^_a-zA-Z 0-9:\-.]/g, '')
       .replace(/^([ 0-9-:\-.]|(xml))+/i, '')
@@ -58,11 +91,13 @@ function App() {
             ${indentSpaces}</${tag}>`;
 
     return contentWithWrapper;
-  }
+  };
 
-  function createXMLData(data: any): void {
-    const content = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE CDRC>
-    ${convertXML(data, 'CDRC')}
+  const createXMLData = (data: any, filename: string): void => {
+    const content = `<?xml version="1.0" encoding="utf-8"?>
+    <CDRC xmlns="http://bsp.gov.ph/xml/CDRC/1.0">
+    ${convertXML(data, 'Header')}
+    </CDRC>
     `;
 
     const dataStr = `data:text/application/xml;charset=utf-8,${encodeURIComponent(
@@ -71,21 +106,38 @@ function App() {
 
     const element = document.createElement('a');
     element.href = dataStr;
-    element.download = 'myFile.xml';
+    element.download = `${filename}`;
     document.body.appendChild(element); // Required for this to work in FireFox
     element.click();
-  }
+  };
 
   const readUploadFile = (file: File): void => {
     const reader = new FileReader();
+    const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
+
+    const xmlFileName = `${fileNameWithoutExtension}.xml`;
+
     reader.onload = (e) => {
       const data = e.target?.result as ArrayBuffer;
       const workbook = xlsx.read(data, { type: 'array' });
-      const worksheet = workbook.Sheets.CDRC_A;
-      const json: any = xlsx.utils.sheet_to_json(worksheet);
-      console.table(json);
+      const worksheetA = workbook.Sheets.CDRC_A;
+      const worksheetB = workbook.Sheets.CDRC_B;
 
-      const mJson = [];
+      const jsonA: any = xlsx.utils.sheet_to_json(worksheetA);
+      const jsonB: any = xlsx.utils.sheet_to_json(worksheetB);
+
+      console.table(jsonA);
+      console.table(jsonB);
+
+      let valueD22 = '';
+      const cellD22 = worksheetB.D22;
+      if (cellD22 && cellD22.v) {
+        valueD22 = cellD22.v.toString();
+      } else {
+        console.error('Error accessing cell D22 in CDRC_B sheet');
+      }
+
+      const mJson: any[] = [];
       const days = [
         'Consolidated Daily Report of Condition_3',
         'Consolidated Daily Report of Condition_4',
@@ -104,25 +156,20 @@ function App() {
         'Consolidated Daily Report of Condition_8': 'C0070',
         'Consolidated Daily Report of Condition_9': 'C0080',
       };
-      for (let i = 0; i < json.length; i++) {
+      for (let i = 0; i < jsonA.length; i++) {
         if (i > 3) {
-          const newJson = json[i];
+          const newJson = jsonA[i];
           delete newJson.CDRC_A;
           delete newJson['Consolidated Daily Report of Condition'];
-          // delete newJson['Consolidated Daily Report of Condition_1'];
-
           mJson.push(newJson);
         }
       }
-      const newArr = [];
+      const newArr: any[] = [];
       console.log('mjsob', mJson);
       for (let j = 0; j < mJson.length - 1; j++) {
         const item = mJson[j];
         const tempArr: any = {};
         for (let k = 0; k < days.length; k++) {
-          //console.log(item['Consolidated Daily Report of Condition_1']);
-          console.log(item);
-
           if (
             item[days[k]] != null &&
             item['Consolidated Daily Report of Condition_1']
@@ -131,7 +178,6 @@ function App() {
             const CHash = daysList[tempDate];
             const keyS = `${item['Consolidated Daily Report of Condition_1']}${CHash}`;
             tempArr[keyS] = item[days[k]];
-            // console.log(item['Consolidated Daily Report of Condition_1']);
           }
         }
         newArr.push(tempArr);
@@ -140,7 +186,7 @@ function App() {
         return !!Object.keys(item).length;
       });
 
-      let main = {};
+      let main: DataObject = {};
       filteredArr.forEach((item: any) => {
         main = {
           ...main,
@@ -150,19 +196,22 @@ function App() {
 
       console.log('Main', main);
 
-      createXMLData({
-        Header: {
-          Undertaking: 120011728821,
-          FromDate: fromDate,
-          ToDate: toDate,
-        },
-        CDRC_A: { MAIN: main },
-        CDRC_B: {
-          MAIN: {
-            R0130C0010: amount,
+      createXMLData(
+        {
+          Header: {
+            Undertaking: 120011728821,
+            FromDate: fromDate,
+            ToDate: toDate,
+          },
+          CDRC_A: { MAIN: main },
+          CDRC_B: {
+            MAIN: {
+              R0120C0010: valueD22,
+            },
           },
         },
-      });
+        xmlFileName,
+      );
     };
     reader.readAsArrayBuffer(file);
   };
@@ -175,25 +224,34 @@ function App() {
     }
   };
 
-  function setDate1(event: React.ChangeEvent<HTMLInputElement>): void {
+  const setDate1 = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setFromDate(event.target.value);
-  }
-  function setDate2(event: React.ChangeEvent<HTMLInputElement>): void {
+  };
+  const setDate2 = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setToDate(event.target.value);
-  }
-
-  function setAmount(event: React.ChangeEvent<HTMLInputElement>): void {
-    setAmountValue(event.target.value);
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Upload File</h1>
-      <input type="file" name="upload" id="upload" />
-      <input type="date" name="fromDate" id="fromDate" onChange={setDate1} />
-      <input type="date" name="toDate" id="toDate" onChange={setDate2} />
-      <input type="text" name="amount" id="amount" onChange={setAmount} />
-      <button type="submit">Submit</button>
+    <form onSubmit={handleSubmit} style={formStyle}>
+      <h1 style={headerStyle}>Upload File</h1>
+      <input type="file" name="upload" id="upload" style={inputStyle} />
+      <input
+        type="date"
+        name="fromDate"
+        id="fromDate"
+        onChange={setDate1}
+        style={inputStyle}
+      />
+      <input
+        type="date"
+        name="toDate"
+        id="toDate"
+        onChange={setDate2}
+        style={inputStyle}
+      />
+      <button type="submit" style={buttonStyle}>
+        Submit
+      </button>
     </form>
   );
 }
