@@ -53,10 +53,10 @@ function App() {
       .replace(/^([ 0-9-:\-.]|(xml))+/i, '')
       .replace(/ +/g, '-');
 
-    const indentSpaces = Array(spaces + 1).join(' ');
+    const indentSpaces = Array(spaces + 1).join('');
 
     if (data === null || data === undefined) {
-      return `${indentSpaces}<${tag} />`;
+      return `${indentSpaces}<${tag}/>`;
     }
     const content =
       // eslint-disable-next-line no-nested-ternary
@@ -73,31 +73,32 @@ function App() {
               convertXML(value, key, arrayElementTag, spaces + 2),
             )
             .join('\n')
-        : `${indentSpaces}  ${String(data).replace(/([<>&])/g, (_, $1) => {
-            switch ($1) {
-              case '<':
-                return '&lt;';
-              case '>':
-                return '&gt;';
-              case '&':
-                return '&amp;';
-              default:
-                return '';
-            }
-          })}`;
+        : `${indentSpaces}${String(data)
+            .trim()
+            .replace(/([<>&])/g, (_, $1) => {
+              switch ($1) {
+                case '<':
+                  return '&lt;';
+                case '>':
+                  return '&gt;';
+                case '&':
+                  return '&amp;';
+                default:
+                  return '';
+              }
+            })}`;
 
-    const contentWithWrapper = `${indentSpaces}<${tag}>
-            ${content}
-            ${indentSpaces}</${tag}>`;
+    const contentWithWrapper = `${indentSpaces}<${tag}>${content}</${tag}>`;
 
     return contentWithWrapper;
   };
 
   const createXMLData = (data: any, filename: string): void => {
     const content = `<?xml version="1.0" encoding="utf-8"?>
-    <CDRC xmlns="http://bsp.gov.ph/xml/CDRC/1.0">
-    ${convertXML(data, 'Header')}
-    </CDRC>
+    ${convertXML(data, 'CDRC', '', 0).replace(
+      '<CDRC>',
+      '<CDRC xmlns="http://bsp.gov.ph/xml/CDRC/1.0">',
+    )}
     `;
 
     const dataStr = `data:text/application/xml;charset=utf-8,${encodeURIComponent(
@@ -113,9 +114,7 @@ function App() {
 
   const readUploadFile = (file: File): void => {
     const reader = new FileReader();
-    const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, '');
-
-    const xmlFileName = `${fileNameWithoutExtension}.xml`;
+    const filename = `CDRC_10000002_${fromDate}_${toDate}.xml`;
 
     reader.onload = (e) => {
       const data = e.target?.result as ArrayBuffer;
@@ -129,38 +128,40 @@ function App() {
       console.table(jsonA);
       console.table(jsonB);
 
-      let valueD22 = '';
-      const cellD22 = worksheetB.D22;
-      if (cellD22 && cellD22.v) {
-        valueD22 = cellD22.v.toString();
+      let valueE20 = '';
+      const cellE20 = worksheetB.E20;
+      if (cellE20 && cellE20.v) {
+        valueE20 = cellE20.v.toString();
       } else {
         console.error('Error accessing cell D22 in CDRC_B sheet');
       }
 
       const mJson: any[] = [];
       const days = [
-        'Consolidated Daily Report of Condition_3',
-        'Consolidated Daily Report of Condition_4',
-        'Consolidated Daily Report of Condition_5',
-        'Consolidated Daily Report of Condition_6',
-        'Consolidated Daily Report of Condition_7',
-        'Consolidated Daily Report of Condition_8',
-        'Consolidated Daily Report of Condition_9',
+        '__EMPTY_4',
+        '__EMPTY_5',
+        '__EMPTY_6',
+        '__EMPTY_7',
+        '__EMPTY_8',
+        '__EMPTY_9',
+        '__EMPTY_10',
       ];
       const daysList: any = {
-        'Consolidated Daily Report of Condition_3': 'C0020',
-        'Consolidated Daily Report of Condition_4': 'C0030',
-        'Consolidated Daily Report of Condition_5': 'C0040',
-        'Consolidated Daily Report of Condition_6': 'C0050',
-        'Consolidated Daily Report of Condition_7': 'C0060',
-        'Consolidated Daily Report of Condition_8': 'C0070',
-        'Consolidated Daily Report of Condition_9': 'C0080',
+        __EMPTY_4: 'C0020',
+        __EMPTY_5: 'C0030',
+        __EMPTY_6: 'C0040',
+        __EMPTY_7: 'C0050',
+        __EMPTY_8: 'C0060',
+        __EMPTY_9: 'C0070',
+        __EMPTY_10: 'C0080',
       };
       for (let i = 0; i < jsonA.length; i++) {
         if (i > 3) {
           const newJson = jsonA[i];
-          delete newJson.CDRC_A;
-          delete newJson['Consolidated Daily Report of Condition'];
+          delete newJson.__EMPTY;
+          delete newJson.__EMPTY_1;
+          delete newJson.__EMPTY_3;
+
           mJson.push(newJson);
         }
       }
@@ -172,11 +173,12 @@ function App() {
         for (let k = 0; k < days.length; k++) {
           if (
             item[days[k]] != null &&
-            item['Consolidated Daily Report of Condition_1']
+            item?.__EMPTY_2 &&
+            item[days[k]] !== ''
           ) {
             const tempDate = days[k];
             const CHash = daysList[tempDate];
-            const keyS = `${item['Consolidated Daily Report of Condition_1']}${CHash}`;
+            const keyS = `${item.__EMPTY_2}${CHash}`;
             tempArr[keyS] = item[days[k]];
           }
         }
@@ -194,23 +196,25 @@ function App() {
         };
       });
 
-      console.log('Main', main);
+      console.log('Filtered data');
+
+      console.table(main);
 
       createXMLData(
         {
           Header: {
-            Undertaking: 120011728821,
+            Undertaking: 10000002,
             FromDate: fromDate,
             ToDate: toDate,
           },
           CDRC_A: { MAIN: main },
           CDRC_B: {
             MAIN: {
-              R0120C0010: valueD22,
+              R0120C0010: valueE20,
             },
           },
         },
-        xmlFileName,
+        filename,
       );
     };
     reader.readAsArrayBuffer(file);
@@ -233,7 +237,7 @@ function App() {
 
   return (
     <form onSubmit={handleSubmit} style={formStyle}>
-      <h1 style={headerStyle}>Upload File</h1>
+      <h1 style={headerStyle}>CDRC Upload file</h1>
       <input type="file" name="upload" id="upload" style={inputStyle} />
       <input
         type="date"
