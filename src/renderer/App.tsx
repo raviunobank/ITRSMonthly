@@ -1,7 +1,7 @@
-import * as React from 'react';
+import React, { useState } from 'react';
 import * as xlsx from 'xlsx';
 
-const formStyle: React.CSSProperties = {
+const formStyle = {
   maxWidth: '400px',
   margin: 'auto',
   padding: '20px',
@@ -10,12 +10,12 @@ const formStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-const headerStyle: React.CSSProperties = {
+const headerStyle = {
   fontSize: '24px',
   marginBottom: '20px',
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle = {
   width: '100%',
   padding: '10px',
   marginBottom: '10px',
@@ -24,7 +24,7 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-const buttonStyle: React.CSSProperties = {
+const buttonStyle = {
   width: '100%',
   padding: '10px',
   borderRadius: '5px',
@@ -34,188 +34,86 @@ const buttonStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-interface DataObject {
-  [key: string]: any;
-}
-
 function App() {
-  const [fromDate, setFromDate] = React.useState<string>('');
-  const [toDate, setToDate] = React.useState<string>('');
+  const [fromDate, setFromDate] = useState('');
 
-  const convertXML = (
-    data: any,
-    tagName: string,
-    arrayElementTag = 'element',
-    spaces = 0,
-  ): string => {
-    const tag = tagName
-      .replace(/[^_a-zA-Z 0-9:\-.]/g, '')
-      .replace(/^([ 0-9-:\-.]|(xml))+/i, '')
-      .replace(/ +/g, '-');
-
-    const indentSpaces = Array(spaces + 1).join('');
-
-    if (data === null || data === undefined) {
-      return `${indentSpaces}<${tag}/>`;
-    }
-    const content =
-      // eslint-disable-next-line no-nested-ternary
-      Object.prototype.toString.call(data) === '[object Array]'
-        ? data
-            .map((item: any) =>
-              convertXML(item, arrayElementTag, arrayElementTag, spaces + 2),
-            )
-            .join('\n')
-        : typeof data === 'object'
-        ? Object.keys(data)
-            .map((key) => [key, data[key]])
-            .map(([key, value]) =>
-              convertXML(value, key, arrayElementTag, spaces + 2),
-            )
-            .join('\n')
-        : `${indentSpaces}${String(data)
-            .trim()
-            .replace(/([<>&])/g, (_, $1) => {
-              switch ($1) {
-                case '<':
-                  return '&lt;';
-                case '>':
-                  return '&gt;';
-                case '&':
-                  return '&amp;';
-                default:
-                  return '';
-              }
-            })}`;
-
-    const contentWithWrapper = `${indentSpaces}<${tag}>${content}</${tag}>`;
-
-    return contentWithWrapper;
-  };
-
-  const createXMLData = (data: any, filename: string): void => {
-    const content = `<?xml version="1.0" encoding="utf-8"?>
-    ${convertXML(data, 'CDRC', '', 0).replace(
-      '<CDRC>',
-      '<CDRC xmlns="http://bsp.gov.ph/xml/CDRC/1.0">',
-    )}
-    `;
-
+  const createXMLData = (data: string | number | boolean, filename: string) => {
     const dataStr = `data:text/application/xml;charset=utf-8,${encodeURIComponent(
-      content,
+      data,
     )}`;
-
     const element = document.createElement('a');
     element.href = dataStr;
-    element.download = `${filename}`;
+    element.download = filename;
     document.body.appendChild(element); // Required for this to work in FireFox
     element.click();
   };
 
-  const readUploadFile = (file: File): void => {
+  const readUploadFile = (file: Blob) => {
     const reader = new FileReader();
-    const filename = `CDRC_10000002_${fromDate}_${toDate}.xml`;
-
     reader.onload = (e) => {
-      const data = e.target?.result as ArrayBuffer;
+      const data = e.target.result;
       const workbook = xlsx.read(data, { type: 'array' });
-      const worksheetA = workbook.Sheets.CDRC_A;
-      const worksheetB = workbook.Sheets.CDRC_B;
+      const sheetNames = workbook.SheetNames;
 
-      const jsonA: any = xlsx.utils.sheet_to_json(worksheetA);
-      const jsonB: any = xlsx.utils.sheet_to_json(worksheetB);
+      const workbook1 = workbook.Sheets[sheetNames[0]];
+      const cellDataE11 = workbook1.E11 ? workbook1.E11.v : '';
+      const cellDataE12 = workbook1.E12 ? workbook1.E12.v : '';
 
-      console.table(jsonA);
-      console.table(jsonB);
+      const scheduleData = `<ITRS_-_Schedule_0>
+        <Content_of_submission>
+          <Reference_date>${fromDate}</Reference_date>
+          <R0010C0010>${cellDataE11}</R0010C0010>
+          <R0020C0010>${cellDataE12}</R0020C0010>
+        </Content_of_submission>
+      </ITRS_-_Schedule_0>`;
 
-      let valueE20 = '';
-      const cellE20 = worksheetB.E20;
-      if (cellE20 && cellE20.v) {
-        valueE20 = cellE20.v.toString();
-      } else {
-        console.error('Error accessing cell D22 in CDRC_B sheet');
-      }
+      let xmlData2 = '';
+      const workbook2 = workbook.Sheets[sheetNames[1]];
+      const range = { s: { c: 1, r: 7 }, e: { c: 48, r: 1000 } };
 
-      const mJson: any[] = [];
-      const days = [
-        '__EMPTY_4',
-        '__EMPTY_5',
-        '__EMPTY_6',
-        '__EMPTY_7',
-        '__EMPTY_8',
-        '__EMPTY_9',
-        '__EMPTY_10',
-      ];
-      const daysList: any = {
-        __EMPTY_4: 'C0020',
-        __EMPTY_5: 'C0030',
-        __EMPTY_6: 'C0040',
-        __EMPTY_7: 'C0050',
-        __EMPTY_8: 'C0060',
-        __EMPTY_9: 'C0070',
-        __EMPTY_10: 'C0080',
-      };
-      for (let i = 0; i < jsonA.length; i++) {
-        if (i > 3) {
-          const newJson = jsonA[i];
-          delete newJson.__EMPTY;
-          delete newJson.__EMPTY_1;
-          delete newJson.__EMPTY_3;
-
-          mJson.push(newJson);
-        }
-      }
-      const newArr: any[] = [];
-      console.log('mjsob', mJson);
-      for (let j = 0; j < mJson.length - 1; j++) {
-        const item = mJson[j];
-        const tempArr: any = {};
-        for (let k = 0; k < days.length; k++) {
-          if (
-            item[days[k]] != null &&
-            item?.__EMPTY_2 &&
-            item[days[k]] !== ''
-          ) {
-            const tempDate = days[k];
-            const CHash = daysList[tempDate];
-            const keyS = `${item.__EMPTY_2}${CHash}`;
-            tempArr[keyS] = item[days[k]];
+      const data2Sheet = [];
+      // eslint-disable-next-line no-plusplus
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        const row = [];
+        // eslint-disable-next-line no-plusplus
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = xlsx.utils.encode_cell({ c: C, r: R });
+          const cell = workbook2[cellAddress];
+          if (cell?.v !== undefined) {
+            row.push(cell?.v);
+          } else {
+            row.push('');
           }
         }
-        newArr.push(tempArr);
+        data2Sheet.push(row);
       }
-      const filteredArr = newArr.filter((item) => {
-        return !!Object.keys(item).length;
+
+      data2Sheet.forEach((row) => {
+        let xmlElement2 = '';
+        row.forEach((cell, index) => {
+          const cellValue = cell === 0 ? 0 : cell || ''; // Check if cell is 0, otherwise use cell value or empty string
+          // eslint-disable-next-line no-use-before-define
+          xmlElement2 += generateXmlElement(columnHeaders[index], cellValue);
+        });
+        xmlData2 += `<SCH_13_1_T_Item>${xmlElement2}</SCH_13_1_T_Item>`;
       });
 
-      let main: DataObject = {};
-      filteredArr.forEach((item: any) => {
-        main = {
-          ...main,
-          ...item,
-        };
-      });
+      const xmlData = `<ITRS_M xmlns="http://bsp.gov.ph/xml/ITRS_M/1.0">
+        <Header>
+          <Undertaking>10000002</Undertaking>
+          <Year>2024</Year>
+          <Period>3</Period>
+        </Header>
+        ${scheduleData}
+        <SCH_13_1>
+        <SCH_13_1_T>
+        ${xmlData2}
+        </SCH_13_1_T>
+        </SCH_13_1>
+      </ITRS_M>`;
 
-      console.log('Filtered data');
-
-      console.table(main);
-
-      createXMLData(
-        {
-          Header: {
-            Undertaking: 10000002,
-            FromDate: fromDate,
-            ToDate: toDate,
-          },
-          CDRC_A: { MAIN: main },
-          CDRC_B: {
-            MAIN: {
-              R0120C0010: valueE20,
-            },
-          },
-        },
-        filename,
-      );
+      console.log(xmlData);
+      createXMLData(xmlData, 'ITRS_Schedule_0.xml');
     };
     reader.readAsArrayBuffer(file);
   };
@@ -228,29 +126,79 @@ function App() {
     }
   };
 
-  const setDate1 = (event: React.ChangeEvent<HTMLInputElement>): void => {
+  const columnHeaders = [
+    'C0010',
+    'C0020',
+    'C0030',
+    'C0040',
+    'C0050',
+    'C0060',
+    'C0070',
+    'C0080',
+    'C0090',
+    'C0100',
+    'C0110',
+    'C0120',
+    'C0130',
+    'C0140',
+    'C0150',
+    'C0160',
+    'C0170',
+    'C0180',
+    'C0190',
+    'C0200',
+    'C0210',
+    'C0220',
+    'C0230',
+    'C0240',
+    'C0250',
+    'C0260',
+    'C0270',
+    'C0280',
+    'C0290',
+    'C0300',
+    'C0310',
+    'C0320',
+    'C0330',
+    'C0340',
+    'C0350',
+    'C0360',
+    'C0370',
+    'C0380',
+    'C0390',
+    'C0400',
+    'C0410',
+    'C0420',
+    'C0430',
+    'C0440',
+    'C0450',
+    'C0460',
+    'C0470',
+    'C0480',
+  ];
+
+  function generateXmlElement(header: string, value: null | undefined) {
+    if (value === null || value === undefined) {
+      return ''; // Return empty string for null or undefined values
+    }
+    return `<${header}>${value}</${header}>`;
+  }
+
+  const setDate1 = (event: {
+    target: { value: React.SetStateAction<string> };
+  }) => {
     setFromDate(event.target.value);
-  };
-  const setDate2 = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    setToDate(event.target.value);
   };
 
   return (
     <form onSubmit={handleSubmit} style={formStyle}>
-      <h1 style={headerStyle}>CDRC Upload file</h1>
+      <h1 style={headerStyle}>ITRS Upload file</h1>
       <input type="file" name="upload" id="upload" style={inputStyle} />
       <input
         type="date"
         name="fromDate"
         id="fromDate"
         onChange={setDate1}
-        style={inputStyle}
-      />
-      <input
-        type="date"
-        name="toDate"
-        id="toDate"
-        onChange={setDate2}
         style={inputStyle}
       />
       <button type="submit" style={buttonStyle}>
