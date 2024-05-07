@@ -98,6 +98,37 @@ function App() {
         xmlData2 += `<SCH_13_1_T_Item>${xmlElement2}</SCH_13_1_T_Item>`;
       });
 
+      let xmlData3 = '';
+      const workbook3 = workbook.Sheets[sheetNames[2]]; // Accessing third sheet
+      // const range = { s: { c: 1, r: 7 }, e: { c: 48, r: 1000 } }; // Define your range
+
+      const data3Sheet = [];
+      // eslint-disable-next-line no-plusplus
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        const row = [];
+        // eslint-disable-next-line no-plusplus
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = xlsx.utils.encode_cell({ c: C, r: R });
+          const cell = workbook3[cellAddress];
+          if (cell?.v !== undefined) {
+            row.push(cell?.v);
+          } else {
+            row.push('');
+          }
+        }
+        data3Sheet.push(row);
+      }
+
+      data3Sheet.forEach((row) => {
+        let xmlElement3 = '';
+        row.forEach((cell, index) => {
+          const cellValue = cell === 0 ? 0 : cell || '';
+          // eslint-disable-next-line no-use-before-define
+          xmlElement3 += generateXmlElement(columnHeaders[index], cellValue);
+        });
+        xmlData3 += `<SCH_15_1_T_Item>${xmlElement3}</SCH_15_1_T_Item>`;
+      });
+
       const xmlData = `<ITRS_M xmlns="http://bsp.gov.ph/xml/ITRS_M/1.0">
         <Header>
           <Undertaking>10000002</Undertaking>
@@ -110,9 +141,14 @@ function App() {
         ${xmlData2}
         </SCH_13_1_T>
         </SCH_13_1>
+        <SCH_15_1>
+        <SCH_15_1_T>
+        ${xmlData3}
+        </SCH_15_1_T>
+        </SCH_15_1>
+
       </ITRS_M>`;
 
-      console.log(xmlData);
       createXMLData(xmlData, 'ITRS_Schedule_0.xml');
     };
     reader.readAsArrayBuffer(file);
