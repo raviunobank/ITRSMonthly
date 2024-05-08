@@ -69,7 +69,35 @@ function App() {
 
       let xmlData2 = '';
       const workbook2 = workbook.Sheets[sheetNames[1]];
-      const range = { s: { c: 1, r: 7 }, e: { c: 48, r: 1000 } };
+      console.table(workbook2);
+      let maxRow = 0;
+      let maxCol = 0;
+
+      // Find the last row with data
+      // eslint-disable-next-line no-restricted-syntax
+      for (const cellAddress in workbook2) {
+        if (
+          cellAddress.match(/[A-Z]+[1-9][0-9]*$/) &&
+          workbook2[cellAddress].v !== undefined
+        ) {
+          const row = parseInt(cellAddress.match(/[1-9][0-9]*$/)[0], 10);
+          maxRow = Math.max(maxRow, row);
+        }
+      }
+
+      // Find the last column with data
+      // eslint-disable-next-line no-restricted-syntax
+      for (const cellAddress in workbook2) {
+        if (
+          cellAddress.match(/[A-Z]+[1-9][0-9]*$/) &&
+          workbook2[cellAddress].v !== undefined
+        ) {
+          const col = xlsx.utils.decode_col(cellAddress.match(/[A-Z]+/)[0]);
+          maxCol = Math.max(maxCol, col);
+        }
+      }
+
+      const range = { s: { c: 1, r: 7 }, e: { c: maxCol, r: maxRow } };
 
       const data2Sheet = [];
       // eslint-disable-next-line no-plusplus
@@ -93,7 +121,8 @@ function App() {
         row.forEach((cell, index) => {
           const cellValue = cell === 0 ? 0 : cell || ''; // Check if cell is 0, otherwise use cell value or empty string
           // eslint-disable-next-line no-use-before-define
-          xmlElement2 += generateXmlElement(columnHeaders[index], cellValue);
+          const val = generateXmlElement(columnHeaders[index], cellValue);
+          xmlElement2 += val !== undefined ? val : '';
         });
         xmlData2 += `<SCH_13_1_T_Item>${xmlElement2}</SCH_13_1_T_Item>`;
       });
@@ -213,9 +242,12 @@ function App() {
     'C0480',
   ];
 
-  function generateXmlElement(header: string, value: null | undefined) {
-    if (value === null || value === undefined) {
-      return ''; // Return empty string for null or undefined values
+  function generateXmlElement(
+    header: string,
+    value: null | undefined | string,
+  ) {
+    if (!header || value == null || value === '') {
+      return ''; // Return empty string if header is undefined, or if value is null, undefined, or an empty string
     }
     return `<${header}>${value}</${header}>`;
   }
